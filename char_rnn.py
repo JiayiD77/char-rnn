@@ -38,7 +38,7 @@ encode = lambda s:[chars_to_ids[c] for c in s]
 decode = lambda l:[ids_to_chars[i] for i in l]
 
 data = torch.tensor(encode(text), dtype=torch.long)
-split = int(0.95*len(data))
+split = int(0.9*len(data))
 train_data = torch.unsqueeze(data[:split], dim=1)
 test_data = torch.unsqueeze(data[split:], dim=1)
 
@@ -48,7 +48,7 @@ seq_len = 64
 num_layers = 1
 dropout = 0
 lr = 1e-3
-epochs = 10
+epochs = 100
 test_seq_len = 1000
 
 # device
@@ -69,6 +69,7 @@ optimizer = torch.optim.Adam(params=rnn.parameters(), lr=lr)
 train_data = train_data.to(device)
 test_data = test_data.to(device)
 
+print("Training.....")
 for epoch in range(epochs):
     start_idx = torch.randint(0, 200, (1,))
     n = 0    
@@ -80,12 +81,13 @@ for epoch in range(epochs):
         target_seq = train_data[start_idx+1 : start_idx+seq_len+1]
         
         output_seq, hidden_state = rnn(input_seq, hidden_state)
+        hidden_state = hidden_state.data
         
         loss = loss_fn(torch.squeeze(output_seq), torch.squeeze(target_seq))
         total_loss += loss
         
         optimizer.zero_grad()
-        loss.backward(retain_graph=True)
+        loss.backward()
         optimizer.step()
         
         start_idx += seq_len
@@ -93,7 +95,7 @@ for epoch in range(epochs):
         
         if start_idx + seq_len > len(train_data) + 1:
             break
-        
-    print(f"Epoch: {epoch}")
-    print(f"Loss: {total_loss/n:.5f}") 
+    if epoch % 10 == 0:    
+        print(f"Epoch: {epoch}")
+        print(f"Loss: {total_loss/n:.5f}") 
         
