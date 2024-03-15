@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+# Models
 class RNN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, num_layers=1, dropout=0):
         super(RNN, self).__init__()
@@ -17,6 +18,21 @@ class RNN(nn.Module):
         embeddings = self.embedding(x)
         output, hidden_state = self.rnn(embeddings, hidden_state)
         output = self.decoder(output)
+        return output, hidden_state
+
+class RNNC(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super().__init__()
+        self.embedding = nn.Embedding(input_size, input_size)
+        self.rnn = nn.RNNCell(input_size=input_size, 
+                          hidden_size=hidden_size)
+        self.decoder = nn.Linear(in_features=hidden_size,
+                                 out_features=output_size)
+        
+    def forward(self, x, hidden_state):
+        embeddings = self.embedding(x)
+        hidden_state = self.rnn(embeddings, hidden_state)
+        output = self.decoder(hidden_state)
         return output, hidden_state
     
 # Data preparation
@@ -39,8 +55,10 @@ decode = lambda l:[ids_to_chars[i] for i in l]
 
 data = torch.tensor(encode(text), dtype=torch.long)
 split = int(0.9*len(data))
-train_data = torch.unsqueeze(data[:split], dim=1)
-test_data = torch.unsqueeze(data[split:], dim=1)
+train_data = data[:split]
+test_data = data[split:]
+# train_data = torch.unsqueeze(data[:split], dim=1)
+# test_data = torch.unsqueeze(data[split:], dim=1)
 
 # Parameters
 hidden_size = 128
@@ -63,6 +81,10 @@ rnn = RNN(input_size=vocab_size,
           num_layers=num_layers,
           dropout=dropout).to(device)
 
+rnnc = RNNC(input_size=vocab_size,
+          hidden_size=hidden_size,
+          output_size=vocab_size).to(device)
+
 loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(params=rnn.parameters(), lr=lr)
 
@@ -80,7 +102,7 @@ for epoch in range(epochs):
         input_seq = train_data[start_idx : start_idx+seq_len]
         target_seq = train_data[start_idx+1 : start_idx+seq_len+1]
         
-        output_seq, hidden_state = rnn(input_seq, hidden_state)
+        output_seq, hidden_state = rnnc(input_seq, hidden_state)
         hidden_state = hidden_state.data
         
         loss = loss_fn(torch.squeeze(output_seq), torch.squeeze(target_seq))
