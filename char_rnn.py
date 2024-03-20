@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from torch.distributions import Categorical
 import numpy as np
 
 # Models
@@ -66,7 +68,7 @@ seq_len = 64
 num_layers = 1
 dropout = 0
 lr = 1e-3
-epochs = 100
+epochs = 20
 test_seq_len = 1000
 
 # device
@@ -102,7 +104,7 @@ for epoch in range(epochs):
         input_seq = train_data[start_idx : start_idx+seq_len]
         target_seq = train_data[start_idx+1 : start_idx+seq_len+1]
         
-        output_seq, hidden_state = rnnc(input_seq, hidden_state)
+        output_seq, hidden_state = rnn(input_seq, hidden_state)
         hidden_state = hidden_state.data
         
         loss = loss_fn(torch.squeeze(output_seq), torch.squeeze(target_seq))
@@ -115,9 +117,33 @@ for epoch in range(epochs):
         start_idx += seq_len
         n += 1
         
-        if start_idx + seq_len > len(train_data) + 1:
+        if start_idx + seq_len + 1 > len(train_data) - 1:
             break
-    if epoch % 10 == 0:    
+        
+    if epoch % 1 == 0:    
         print(f"Epoch: {epoch}")
         print(f"Loss: {total_loss/n:.5f}") 
-        
+
+print("-------------------------------------------------------------------")
+print("Generating Texts.....")
+
+char_num = 0
+hidden_state_gen = None
+start_idx_gen = torch.randint(0, 200, (1,))
+input_seq_gen = test_data[start_idx_gen : start_idx_gen+seq_len]
+while True:
+
+    input = input_seq_gen[-seq_len:]
+    output, hidden_state_gen = rnn(input_seq_gen, hidden_state_gen)
+    output = F.softmax(torch.squeeze(output[-1]), dim=0)
+    dist = Categorical(output)
+    index = dist.sample()
+    print(ids_to_chars[index.item()], end='')
+    
+    torch.cat((input_seq_gen, index.unsqueeze(dim=0)), dim=0)
+    char_num += 1
+    
+    if char_num > test_seq_len:
+        break
+print('\n')
+print("-------------------------------------------------------------------")
