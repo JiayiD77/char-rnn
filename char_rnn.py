@@ -63,13 +63,13 @@ test_data = data[split:]
 # test_data = torch.unsqueeze(data[split:], dim=1)
 
 # Parameters
-hidden_size = 128
-seq_len = 64
-num_layers = 1
+hidden_size = 256
+seq_len = 128
+num_layers = 3
 dropout = 0
-lr = 1e-3
-epochs = 20
-test_seq_len = 1000
+lr = 1e-4
+epochs = 150
+test_seq_len = 5000
 
 # device
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -120,7 +120,7 @@ for epoch in range(epochs):
         if start_idx + seq_len + 1 > len(train_data) - 1:
             break
         
-    if epoch % 1 == 0:    
+    if epoch % 5 == 0:    
         print(f"Epoch: {epoch}")
         print(f"Loss: {total_loss/n:.5f}") 
 
@@ -132,15 +132,15 @@ hidden_state_gen = None
 start_idx_gen = torch.randint(0, 200, (1,))
 input_seq_gen = test_data[start_idx_gen : start_idx_gen+seq_len]
 while True:
-
+    
     input = input_seq_gen[-seq_len:]
-    output, hidden_state_gen = rnn(input_seq_gen, hidden_state_gen)
+    output, hidden_state_gen = rnn(input, hidden_state_gen)
     output = F.softmax(torch.squeeze(output[-1]), dim=0)
     dist = Categorical(output)
     index = dist.sample()
     print(ids_to_chars[index.item()], end='')
     
-    torch.cat((input_seq_gen, index.unsqueeze(dim=0)), dim=0)
+    input_seq_gen = torch.cat((input_seq_gen, index.unsqueeze(dim=0)), dim=0)
     char_num += 1
     
     if char_num > test_seq_len:
